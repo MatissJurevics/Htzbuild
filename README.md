@@ -1,101 +1,130 @@
-# Expo Remote Build Tool
+# htzbuild 🚀
 
-This repository ships an executable CLI called `htzbuild` that can be installed globally or run via `npx` inside any project root. It wraps the Hetzner Cloud + EAS workflow from `build-remote.sh`, syncing the local project to a temporary Hetzner VM, running `eas build --local`, and downloading the Android artifact back to `build-output/`.
+> **Thunderously Fast EAS Remote Builds on Hetzner Cloud**
 
-## Requirements
+[![npm version](https://img.shields.io/npm/v/htzbuild.svg)](https://www.npmjs.com/package/htzbuild)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-- Node.js 20 or newer (to run the CLI)
-- `hcloud`, `ssh`, `scp`, `rsync`, and `git` installed in your PATH
-- Hetzner API credentials (`HCLOUD_TOKEN`) or an active `hcloud` context
-- Expo credentials (`EXPO_TOKEN`) if private credentials are required
+**htzbuild** is a high-performance CLI tool that supercharges your Expo development workflow. It spins up a powerful, ephemeral dedicated server on Hetzner Cloud, syncs your project, runs `eas build --local`, and brings the artifact right back to your machine—often significantly faster and cheaper than standard cloud build options.
 
-## Installation
+---
 
-```bash
-npm install -g /path/to/htzbuild
-```
+## ✨ Features
 
-Or run directly if you prefer not to install globally:
+- **🚀 High Performance**: Defaults to `cpx52` (AMD EPYC) compilation power.
+- **☁️ Ephemeral**: Automatically spins up and tears down VMs for each build.
+- **🔒 Secure**: Syncs environment variables and credentials securely via SSH.
+- **🛠️ Configurable**: Supports custom build profiles, environments, and sync rules.
+- **📦 Local-Compatible**: Uses `eas build --local` remotely vs. hosted CI services.
 
-```bash
-npx htzbuild --profile preview
-```
+---
 
-## Environment Setup (`.env` folder)
+## 🛠 Prerequisites
 
-Every project that uses this CLI must expose its secrets under a `.env` directory at the project root. All files under that directory are parsed (sorted alphabetically) and merged into the process environment; you do not need to export them manually.
+- **Node.js** (v20 or newer)
+- **Hetzner Cloud Account**: API Token (`HCLOUD_TOKEN`).
+- **Tools**: `ssh`, `scp`, `rsync`, `git` (in your system PATH).
+- **Expo**: An Expo project with EAS configured.
 
-Example structure:
+---
 
-```
-.env/
-  credentials.env
-  hcloud.env
-  expo.env
-```
+## 📦 Installation
 
-Each file follows a standard dotenv format:
-
-```
-# .env/credentials.env
-HCLOUD_TOKEN=sb_...
-EXPO_TOKEN=eyJhbGciOi...
-HETZNER_SSH_KEY=my-key
-HETZNER_LOCATION=fsn1
-HETZNER_SERVER_TYPE=cpx52
-```
-
-Use `--env-folder` if you keep your environment in a different location:
-
-```
-htzbuild --env-folder config/env
-```
-
-## Saved Hetzner Credentials
-
-When you prefer not to store Hetzner secrets in `.env`, run `htzbuild config` with the appropriate flags to persist them in `~/.config/htzbuild/credentials.json` (or another path you pass to `--config`/`--credentials-file`). Supply at least one of `--token`, `--ssh-key`, `--location`, or `--server-type`; the CLI loads these credentials before a build, overrides matching `.env` values, and still runs even if the `.env` folder is missing. Call `htzbuild config --help` for the available flags.
-
-## Usage
-
-Run the CLI from the root of the project you want to build:
+To use `htzbuild` anywhere:
 
 ```bash
-htzbuild            # defaults to the preview profile
-htzbuild production # build with the production profile
-
-htzbuild -p preview
-htzbuild -e .env
-htzbuild --profile preview --env-folder .env
-htzbuild --config htzbuild.config.json
+npm install -g htzbuild
 ```
 
-Request `htzbuild --help` for detailed options and custom config guidance before running your build.
+Or run it directly with `npx` (no installation required):
 
-The CLI prints detailed status, waits for the Hetzner VM to become ready, syncs the project via `rsync`, executes `eas build --local` inside a `nohup` session, and polls the build logs until an artifact is ready. The downloaded artifact lands in `build-output/` with a timestamped filename.
+```bash
+npx htzbuild --help
+```
 
-## Build Settings Configuration
+---
 
-If your project requires different sync rules, build commands, or remote paths, drop an `htzbuild.config.json` next to the `.env` directory (an example configuration is provided in `htzbuild.config.example.json`).
+## 🚀 Quick Start
 
-- `remoteProjectDir`, `remoteEnvFile`, `remoteLogPath`, and `remoteStatusFile` tell the CLI where to stage the project and record build metadata on the remote server.
-- `syncExcludes` lets you skip extra folders before rsyncing.
-- `envScript` controls the contents of the remote environment file that's sourced before the build.
-- `artifactForProfile` maps profile names to the primary remote output path (`${PROFILE}` is interpolated).
-- `artifactCandidates` are checked in order to determine which artifact to pull back after the build finishes.
-- `buildCommand` is the shell command that runs inside the remote `nohup` block; `$PROFILE` and `$OUTPUT_FILE` are available for interpolation so you can swap in a custom builder or tooling.
+1.  **Set up your environment**:
+    Create a `.env` directory in your project root and add your secrets.
 
-Pass `--config <path>` when you store your configuration outside the project root, e.g. `htzbuild --config build/htzbuild.json`.
+    ```bash
+    mkdir .env
+    echo "HCLOUD_TOKEN=your_token_here" > .env/hcloud.env
+    echo "EXPO_TOKEN=your_expo_token" > .env/expo.env
+    ```
 
-## Verification
+    > **Note**: You can also use `htzbuild config` to save Hetzner credentials globally so you don't need them in every project.
 
-1. Ensure your `.env` folder is populated before running the CLI.
-2. Verify that the Hetzner credentials are valid by running `hcloud context active` or `hcloud token list`.
-3. After the CLI completes, confirm that `build-output/` contains the APK/AAB and inspect `build.log` on the remote server if you suspect issues (the CLI streams a portion of it during polling).
+2.  **Run a build**:
 
-## Notes
+    ```bash
+    htzbuild --profile preview
+    ```
 
-- The `cloud-init-builder.yaml` in this repository installs Node.js 20, Java 17, Android SDK tools, and `eas-cli` on each Hetzner server.
-- The CLI honors the same `HETZNER_*` variables from the original script for server type, location, and SSH key configuration.
-- Cleanup hooks ensure the temporary VM is deleted if the process terminates unexpectedly.
-- See `PUBLISHING.md` for the steps to publish new `htzbuild` releases to npm.
+    Sit back while `htzbuild` provisions a server, builds your app, and downloads the APK/AAB to `./build-output`.
 
+---
+
+## ⚙️ Configuration
+
+### Environment Variables (`.env/`)
+
+`htzbuild` automatically loads all files in the `.env/` directory at your project root.
+
+**Minimum required variables:**
+- `HCLOUD_TOKEN`: Your Hetzner Cloud API token.
+- `EXPO_TOKEN`: (Optional but recommended) For authenticating EAS on the remote builder.
+
+**Optional customizations:**
+- `HETZNER_LOCATION`: Data center location (default: `fsn1`).
+- `HETZNER_SERVER_TYPE`: Server flavor (default: `cpx52`).
+- `HETZNER_SSH_KEY`: Name of the SSH key to inject (if pre-configured in Hetzner).
+
+### Config File (`htzbuild.config.json`)
+
+For advanced control, place a `htzbuild.config.json` in your project root.
+
+```json
+{
+  "remoteProjectDir": "project",
+  "artifactForProfile": {
+    "preview": "build-output/app-release.apk",
+    "production": "build-output/app-release.aab"
+  },
+  "syncExcludes": [
+    ".git",
+    "node_modules",
+    "dist"
+  ]
+}
+```
+
+### Global Config
+
+Configure defaults globally to avoid repeating flags:
+
+```bash
+htzbuild config --token <HCLOUD_TOKEN> --ssh-key <KEY_NAME>
+```
+
+Credentials are saved in `~/.config/htzbuild/credentials.json`.
+
+---
+
+## ❓ Troubleshooting
+
+**SSH Authentication Failures**
+- Ensure your local SSH agent is running (`ssh-add -l`).
+- `htzbuild` attempts to reuse existing Hetzner SSH keys if specified; otherwise, it relies on your local default keys.
+
+**Build Failures**
+- Check the `build.log` streamed during execution.
+- If the server terminates too early, try running with `--keep-alive-on-error` to debug the running VM.
+
+---
+
+## 📄 License
+
+MIT © [Matiss Jurevics](https://github.com/MatissJurevics)
