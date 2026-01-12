@@ -1,0 +1,34 @@
+# Implementation Plan
+
+1. Document the current `build-remote.sh` workflow and gather all required environment inputs to ensure the CLI mirrors its remote build lifecycle.
+   Done
+   Mapped how `build-remote.sh` provisions Hetzner, syncs the project, runs the EAS build, and tears down the node.
+   Logged every required env input (`HCLOUD_TOKEN`, `HETZNER_*`, `EXPO_TOKEN`, etc.) so the CLI can mirror the same lifecycle.
+2. Design a reusable CLI architecture that can be installed in any project root, loads all environment variables from the `.env` directory, and exposes the same build profile input.
+   Done
+   Designed a Node/CJS CLI surface with argument parsing, help text, and `.env` directory loading before delegating to the builder.
+   Planned helpers for logging, SSH/rsync orchestration, artifact handling, and cleanup to keep the behavior aligned with the shell script.
+3. Implement the CLI in JavaScript/Node, wrapping the Hetzner/EAS logic, adding logging, validation, and artifact retrieval while reading `.env` files securely.
+   Done
+   Built the CLI modules (`envLoader`, `logger`, `remoteBuilder`) that handle prerequisites, server bootstrapping, remote builds, and artifact retrieval.
+   Added robust error handling, cleanup hooks, and monitoring loops so the automation matches the original behavior end-to-end.
+4. Add project metadata (README) describing how to install, configure the `.env` folder, and use the CLI across projects, including environment variable guidance.
+   Done
+   Authored `README.md` with installation steps, `.env` folder expectations, usage examples, and verification tips for GitHub readers.
+   Noted the bundled `cloud-init-builder.yaml`, required CLI tools, and how artifacts land in `build-output/`.
+5. Validate the CLI flow (unit tests or smoke commands) and record progress by marking each plan step as Done with a two-line summary inside this file.
+   Done
+   Ran `read_lints` (no issues) and ensured the `expobuild` bin file is executable so the CLI is runnable as designed.
+   Reasoned through all code paths against the original shell flow to ensure monitoring, cleanup, and artifact download remain intact.
+6. Determine configurable build settings (sync rules, remote dirs, build commands, artifact paths) and how they should be exposed to each project.
+   Done
+   Logged every setting that can impact the remote build (paths, excludes, env script, artifacts, build command) so the loader knows what to merge.
+   Scoped placeholder interpolation for `${PROFILE}`/remote metadata so the config stays flexible.
+7. Implement a per-project configuration loader that merges defaults with `expobuild.config.json` overrides and feeds them into the CLI/remote builder.
+   Done
+   Added `src/configLoader.js`, wired `runCli`/`RemoteBuilder` to accept config overrides, and supplied an example JSON config file for projects.
+   Ensured Hetzner/EAS orchestration reads the configurable values while the CLI still enforces cleanup, env loading, and artifact handling.
+8. Document the new configuration file format and usage in `README.md`.
+   Done
+   Extended `README.md` with instructions for `expobuild.config.json`, explained each field, and called out the `--config` flag plus the provided example file.
+   Mentioned how the configuration lets teams adjust sync paths, artifact discovery, and remote build commands per project.

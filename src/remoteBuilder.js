@@ -8,6 +8,7 @@ const {
   logWarn,
   logError
 } = require("./logger");
+const { DEFAULT_CONFIG } = require("./configLoader");
 
 const DEFAULT_IMAGE = "ubuntu-24.04";
 
@@ -32,7 +33,7 @@ function quoteShellArg(value) {
 }
 
 class RemoteBuilder {
-  constructor(profile, env) {
+  constructor(profile, env, config = DEFAULT_CONFIG) {
     this.profile = profile;
     this.env = env;
     this.projectDir = process.cwd();
@@ -64,6 +65,24 @@ class RemoteBuilder {
     this.cleanupRegistered = false;
     this.expoTokenLength = env.EXPO_TOKEN ? env.EXPO_TOKEN.length : 0;
     this.artifactName = null;
+
+    this.config = config || DEFAULT_CONFIG;
+    this.syncExcludes = this.config.syncExcludes || DEFAULT_CONFIG.syncExcludes;
+    this.remoteProjectDir =
+      this.config.remoteProjectDir || DEFAULT_CONFIG.remoteProjectDir;
+    this.remoteEnvFile =
+      this.config.remoteEnvFile || DEFAULT_CONFIG.remoteEnvFile;
+    this.remoteLogPath =
+      this.config.remoteLogPath || DEFAULT_CONFIG.remoteLogPath;
+    this.remoteStatusFile =
+      this.config.remoteStatusFile || DEFAULT_CONFIG.remoteStatusFile;
+    this.artifactMapping =
+      this.config.artifactForProfile || DEFAULT_CONFIG.artifactForProfile;
+    this.artifactCandidates =
+      this.config.artifactCandidates || DEFAULT_CONFIG.artifactCandidates;
+    this.envScript = this.config.envScript || DEFAULT_CONFIG.envScript;
+    this.buildCommand =
+      this.config.buildCommand || DEFAULT_CONFIG.buildCommand;
   }
 
   get sshCommandLine() {
@@ -339,23 +358,15 @@ class RemoteBuilder {
 
   async syncProject() {
     logInfo("Syncing project files to server...");
-    const exclusions = [
-      "node_modules",
-      ".expo",
-      "android",
-      "ios",
-      ".git",
-      "coverage",
-      "build-output"
-    ];
+    const remoteDir = `${this.remoteProjectDir.replace(/\\/$/, "")}/`;
     const rsyncArgs = [
       "-avz",
       "--progress",
-      ...exclusions.flatMap((value) => ["--exclude", value]),
+      ...this.syncExcludes.flatMap((value) => ["--exclude", value]),
       "-e",
       this.sshCommandLine,
       `${this.projectDir}/`,
-      `root@${this.serverIp}:/root/project/`
+      `root@${this.serverIp}:${remoteDir}`
     ];
 
     this.runSpawnSync("rsync", rsyncArgs, { stdio: "inherit" });
@@ -372,13 +383,26 @@ class RemoteBuilder {
       ? Buffer.from(this.env.EXPO_TOKEN, "utf8").toString("base64")
       : null;
 
+    const outputTemplate =
+      this.artifactMapping[this.profile] || this.artifactMapping.default;
+    if (!outputTemplate) {
+      throw new Error("No artifact path defined for this profile");
+    }
+
+    const remoteOutputPath = this.interpolateTemplate(outputTemplate);
+    const outputFileAssignment = `OUTPUT_FILE=${quoteShellArg(remoteOutputPath)}`;
+    const logPath = this.remoteLogPath;
+    const envFile = this.remoteEnvFile;
+    const statusFile = this.remoteStatusFile;
+    const envFileArg = quoteShellArg(envFile);
+    const logPathArg = quoteShellArg(logPath);
+    const statusFileArg = quoteShellArg(statusFile);
+
     const scriptLines = [
       "set -e",
       "",
-      "cat <<'ENVFILE' > /root/build-env.sh",
-      "export ANDROID_HOME=/opt/android-sdk",
-      "export ANDROID_SDK_ROOT=/opt/android-sdk",
-      "export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools",
+      `cat <<'ENVFILE' > ${envFileArg}`,
+      ...this.envScript,
       "ENVFILE",
       ""
     ];
@@ -386,7 +410,7 @@ class RemoteBuilder {
     if (expoTokenBase64) {
       scriptLines.push(
         `echo "Adding EXPO_TOKEN: YES (${this.expoTokenLength} chars)"`,
-        `echo "export EXPO_TOKEN=$(printf '%s' '${expoTokenBase64}' | base64 -d)" >> /root/build-env.sh`
+        `echo "export EXPO_TOKEN=$(printf '%s' '${expoTokenBase64}' | base64 -d)" >> ${envFile}`
       );
     } else {
       scriptLines.push(
@@ -396,12 +420,12 @@ class RemoteBuilder {
     }
 
     scriptLines.push(
-      `echo "export PROFILE=${quoteShellArg(this.profile)}" >> /root/build-env.sh`,
+        `echo "export PROFILE=${quoteShellArg(this.profile)}" >> ${envFileArg}`,
       'echo "=== build-env.sh contents ==="',
-      "cat /root/build-env.sh",
+      `cat ${envFileArg}`,
       'echo "=== end build-env.sh ==="',
-      "cd /root/project",
-      "git config --global --add safe.directory /root/project",
+      `cd ${quoteShellArg(this.remoteProjectDir)}`,
+      `git config --global --add safe.directory ${quoteShellArg(this.remoteProjectDir)}`,
       'git config --global user.email "build@localhost"',
       'git config --global user.name "EAS Builder"',
       "git init -q",
@@ -409,21 +433,17 @@ class RemoteBuilder {
       'git commit -m "Build commit" -q',
       "",
       "nohup bash -c '",
-      "  source /root/build-env.sh",
+      `  source ${envFileArg}`,
       "  echo \"EXPO_TOKEN in subshell: ${EXPO_TOKEN:+SET}${EXPO_TOKEN:-NOT SET}\"",
       "  echo \"PROFILE in subshell: $PROFILE\"",
       "  set -e",
       "  echo \"Installing npm dependencies...\"",
       "  npm install",
       "  echo \"Running EAS build...\"",
-      "  if [ \"$PROFILE\" = \"production\" ]; then",
-      "    OUTPUT_FILE=\"/root/build-output.aab\"",
-      "  else",
-      "    OUTPUT_FILE=\"/root/build-output.apk\"",
-      "  fi",
-      "  npx eas-cli build --local --platform android --profile \"$PROFILE\" --non-interactive --output $OUTPUT_FILE",
-      "  echo \"BUILD_COMPLETE\" > /root/build-status",
-      "' > /root/build.log 2>&1 &",
+      `  ${outputFileAssignment}`,
+      `  ${this.buildCommand}`,
+      `  echo "BUILD_COMPLETE" > ${statusFileArg}`,
+      `' > ${logPathArg} 2>&1 &`,
       "echo \"Build started in background\""
     );
 
@@ -435,9 +455,10 @@ class RemoteBuilder {
     logInfo("Monitoring build progress...");
 
     while (true) {
-      const statusResult = this.runSSHCommand("test -f /root/build-status", {
-        allowFailure: true
-      });
+      const statusResult = this.runSSHCommand(
+        `test -f ${quoteShellArg(this.remoteStatusFile)}`,
+        { allowFailure: true }
+      );
 
       if (statusResult.status === 0) {
         logSuccess("Build completed");
@@ -450,19 +471,27 @@ class RemoteBuilder {
       );
 
       if (processes.status !== 0) {
-        const artifactCheck = this.runSSHCommand(
-          "test -f /root/build-output.apk -o -f /root/build-output.aab",
-          { allowFailure: true }
-        );
+        let artifactCheck = false;
+        for (const candidate of this.artifactCandidates) {
+          const remoteCandidate = this.interpolateTemplate(candidate);
+          const candidateResult = this.runSSHCommand(
+            `test -f ${quoteShellArg(remoteCandidate)}`,
+            { allowFailure: true }
+          );
+          if (candidateResult.status === 0) {
+            artifactCheck = true;
+            break;
+          }
+        }
 
-        if (artifactCheck.status === 0) {
+        if (artifactCheck) {
           logSuccess("Build completed");
           break;
         }
 
         logError("Build process died unexpectedly. Check logs:");
         const logTail = this.runSSHCommand(
-          "tail -100 /root/build.log",
+          `tail -100 ${quoteShellArg(this.remoteLogPath)}`,
           { allowFailure: true }
         );
         if (logTail.stdout) {
@@ -471,9 +500,10 @@ class RemoteBuilder {
         throw new Error("Remote build failed");
       }
 
-      const tailResult = this.runSSHCommand("tail -3 /root/build.log", {
-        allowFailure: true
-      });
+      const tailResult = this.runSSHCommand(
+        `tail -3 ${quoteShellArg(this.remoteLogPath)}`,
+        { allowFailure: true }
+      );
       if (tailResult.stdout) {
         console.log(tailResult.stdout);
       }
@@ -486,24 +516,19 @@ class RemoteBuilder {
     logInfo("Retrieving build artifact...");
     fs.mkdirSync(this.buildOutputDir, { recursive: true });
 
-    const apkTest = this.runSSHCommand("test -f /root/build-output.apk", {
-      allowFailure: true
-    });
+    for (const candidate of this.artifactCandidates) {
+      const remoteCandidate = this.interpolateTemplate(candidate);
+      const artifactCheck = this.runSSHCommand(
+        `test -f ${quoteShellArg(remoteCandidate)}`,
+        { allowFailure: true }
+      );
 
-    if (apkTest.status === 0) {
-      this.artifactName = `build-${this.timestamp()}.apk`;
-      this.copyArtifact("/root/build-output.apk", this.artifactName);
-      return;
-    }
-
-    const aabTest = this.runSSHCommand("test -f /root/build-output.aab", {
-      allowFailure: true
-    });
-
-    if (aabTest.status === 0) {
-      this.artifactName = `build-${this.timestamp()}.aab`;
-      this.copyArtifact("/root/build-output.aab", this.artifactName);
-      return;
+      if (artifactCheck.status === 0) {
+        const extension = path.extname(remoteCandidate);
+        this.artifactName = `build-${this.timestamp()}${extension}`;
+        this.copyArtifact(remoteCandidate, this.artifactName);
+        return;
+      }
     }
 
     throw new Error("No build artifact was found on the remote server");
@@ -519,6 +544,19 @@ class RemoteBuilder {
 
     this.runSpawnSync("scp", scpArgs, { stdio: "inherit" });
     logSuccess(`Artifact saved: ${localPath}`);
+  }
+
+  interpolateTemplate(template) {
+    if (typeof template !== "string") {
+      return template;
+    }
+
+    return template
+      .replace(/\${PROFILE}/g, this.profile)
+      .replace(/\${REMOTE_PROJECT_DIR}/g, this.remoteProjectDir)
+      .replace(/\${REMOTE_ENV_FILE}/g, this.remoteEnvFile)
+      .replace(/\${REMOTE_LOG_PATH}/g, this.remoteLogPath)
+      .replace(/\${REMOTE_STATUS_FILE}/g, this.remoteStatusFile);
   }
 
   timestamp() {

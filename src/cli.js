@@ -1,5 +1,6 @@
 const path = require("path");
 const { loadEnvFromFolder } = require("./envLoader");
+const { loadConfig } = require("./configLoader");
 const { RemoteBuilder } = require("./remoteBuilder");
 const { logInfo, logError } = require("./logger");
 
@@ -13,6 +14,7 @@ runs \`eas build --local\`, and pulls the artifact into a local \`build-output\`
 Options:
   -p, --profile <name>      Override the build profile (default: preview)
   -e, --env-folder <path>   Point to a directory full of env files (default: .env)
+  -c, --config <path>       Use a custom expobuild config (default: expobuild.config.json)
   -h, --help                Show this help message
 `);
 }
@@ -22,6 +24,8 @@ function parseArgs(argv) {
   let profile = "preview";
   let envFolder = ".env";
   let usedProfile = false;
+
+  let configFile;
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
@@ -52,17 +56,27 @@ function parseArgs(argv) {
       throw new Error(`Missing env folder after ${arg}`);
     }
 
+    if (arg === "--config" || arg === "-c") {
+      const value = args[index + 1];
+      if (value && !value.startsWith("-")) {
+        configFile = value;
+        index += 1;
+        continue;
+      }
+      throw new Error(`Missing config file after ${arg}`);
+    }
+
     if (!usedProfile && !arg.startsWith("-")) {
       profile = arg;
       usedProfile = true;
     }
   }
 
-  return { profile, envFolder };
+  return { profile, envFolder, configFile };
 }
 
 async function runCli(argv) {
-  const { profile, envFolder } = parseArgs(argv);
+  const { profile, envFolder, configFile } = parseArgs(argv);
   const envDirectory = path.resolve(process.cwd(), envFolder);
   logInfo(`Loading environment from ${envDirectory}`);
   const loadedEnv = loadEnvFromFolder(envDirectory);
@@ -74,7 +88,8 @@ async function runCli(argv) {
   });
 
   const builderEnv = { ...process.env };
-  const builder = new RemoteBuilder(profile, builderEnv);
+  const config = loadConfig(process.cwd(), configFile);
+  const builder = new RemoteBuilder(profile, builderEnv, config);
 
   try {
     await builder.run();

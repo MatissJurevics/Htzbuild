@@ -1,0 +1,31 @@
+{
+  "remoteProjectDir": "/root/project",
+  "remoteEnvFile": "/root/build-env.sh",
+  "remoteLogPath": "/root/build.log",
+  "remoteStatusFile": "/root/build-status",
+  "syncExcludes": [
+    "node_modules",
+    ".expo",
+    "android",
+    "ios",
+    ".git",
+    "coverage",
+    "build-output"
+  ],
+  "artifactForProfile": {
+    "preview": "/root/build-output.apk",
+    "production": "/root/build-output.aab",
+    "default": "/root/build-output.apk"
+  },
+  "artifactCandidates": [
+    "/root/build-output.apk",
+    "/root/build-output.aab"
+  ],
+  "envScript": [
+    "export ANDROID_HOME=/opt/android-sdk",
+    "export ANDROID_SDK_ROOT=/opt/android-sdk",
+    "export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools"
+  ],
+  "buildCommand": "npx eas-cli build --local --platform android --profile \"$PROFILE\" --non-interactive --output $OUTPUT_FILE"
+}
+

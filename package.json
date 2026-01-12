@@ -11,7 +11,8 @@
     "bin/",
     "src/",
     "cloud-init-builder.yaml",
-    "README.md"
+    "README.md",
+    "expobuild.config.example.json"
   ],
   "scripts": {
     "cli": "node ./bin/expobuild"

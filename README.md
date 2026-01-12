@@ -62,9 +62,23 @@ expobuild production # build with the production profile
 expobuild -p preview
 expobuild -e .env
 expobuild --profile preview --env-folder .env
+expobuild --config expobuild.config.json
 ```
 
 The CLI prints detailed status, waits for the Hetzner VM to become ready, syncs the project via `rsync`, executes `eas build --local` inside a `nohup` session, and polls the build logs until an artifact is ready. The downloaded artifact lands in `build-output/` with a timestamped filename.
+
+## Build Settings Configuration
+
+If your project requires different sync rules, build commands, or remote paths, drop an `expobuild.config.json` next to the `.env` directory (an example configuration is provided in `expobuild.config.example.json`).
+
+- `remoteProjectDir`, `remoteEnvFile`, `remoteLogPath`, and `remoteStatusFile` tell the CLI where to stage the project and record build metadata on the remote server.
+- `syncExcludes` lets you skip extra folders before rsyncing.
+- `envScript` controls the contents of the remote environment file that's sourced before the build.
+- `artifactForProfile` maps profile names to the primary remote output path (`${PROFILE}` is interpolated).
+- `artifactCandidates` are checked in order to determine which artifact to pull back after the build finishes.
+- `buildCommand` is the shell command that runs inside the remote `nohup` block; `$PROFILE` and `$OUTPUT_FILE` are available for interpolation so you can swap in a custom builder or tooling.
+
+Pass `--config <path>` when you store your configuration outside the project root, e.g. `expobuild --config build/expobuild.json`.
 
 ## Verification
 
