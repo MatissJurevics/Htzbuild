@@ -358,7 +358,7 @@ class RemoteBuilder {
 
   async syncProject() {
     logInfo("Syncing project files to server...");
-    const remoteDir = `${this.remoteProjectDir.replace(/\\/$/, "")}/`;
+    const remoteDir = `${this.remoteProjectDir.replace(/\/$/, "")}/`;
     const rsyncArgs = [
       "-avz",
       "--progress",

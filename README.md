@@ -65,6 +65,8 @@ htzbuild --profile preview --env-folder .env
 htzbuild --config htzbuild.config.json
 ```
 
+Request `htzbuild --help` for detailed options and custom config guidance before running your build.
+
 The CLI prints detailed status, waits for the Hetzner VM to become ready, syncs the project via `rsync`, executes `eas build --local` inside a `nohup` session, and polls the build logs until an artifact is ready. The downloaded artifact lands in `build-output/` with a timestamped filename.
 
 ## Build Settings Configuration
