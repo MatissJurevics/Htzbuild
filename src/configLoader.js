@@ -57,7 +57,7 @@ function resolveConfigPath(projectDir, configFileOption) {
     return path.resolve(process.cwd(), configFileOption);
   }
 
-  return path.resolve(projectDir, "expobuild.config.json");
+  return path.resolve(projectDir, "htzbuild.config.json");
 }
 
 function loadConfig(projectDir, configFileOption) {

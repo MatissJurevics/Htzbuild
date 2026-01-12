@@ -6,7 +6,7 @@ const { logInfo, logError } = require("./logger");
 
 function printCliHelp() {
   console.log(`
-Usage: expobuild [profile] [options]
+Usage: htzbuild [profile] [options]
 
 Profiles default to "preview". The CLI syncs the current project with a Hetzner build server,
 runs \`eas build --local\`, and pulls the artifact into a local \`build-output\` folder.
@@ -14,7 +14,7 @@ runs \`eas build --local\`, and pulls the artifact into a local \`build-output\`
 Options:
   -p, --profile <name>      Override the build profile (default: preview)
   -e, --env-folder <path>   Point to a directory full of env files (default: .env)
-  -c, --config <path>       Use a custom expobuild config (default: expobuild.config.json)
+  -c, --config <path>       Use a custom htzbuild config (default: htzbuild.config.json)
   -h, --help                Show this help message
 `);
 }

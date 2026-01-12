@@ -18,17 +18,25 @@
    Noted the bundled `cloud-init-builder.yaml`, required CLI tools, and how artifacts land in `build-output/`.
 5. Validate the CLI flow (unit tests or smoke commands) and record progress by marking each plan step as Done with a two-line summary inside this file.
    Done
-   Ran `read_lints` (no issues) and ensured the `expobuild` bin file is executable so the CLI is runnable as designed.
+   Ran `read_lints` (no issues) and ensured the `htzbuild` bin file is executable so the CLI is runnable as designed.
    Reasoned through all code paths against the original shell flow to ensure monitoring, cleanup, and artifact download remain intact.
 6. Determine configurable build settings (sync rules, remote dirs, build commands, artifact paths) and how they should be exposed to each project.
    Done
    Logged every setting that can impact the remote build (paths, excludes, env script, artifacts, build command) so the loader knows what to merge.
    Scoped placeholder interpolation for `${PROFILE}`/remote metadata so the config stays flexible.
-7. Implement a per-project configuration loader that merges defaults with `expobuild.config.json` overrides and feeds them into the CLI/remote builder.
+7. Implement a per-project configuration loader that merges defaults with `htzbuild.config.json` overrides and feeds them into the CLI/remote builder.
    Done
    Added `src/configLoader.js`, wired `runCli`/`RemoteBuilder` to accept config overrides, and supplied an example JSON config file for projects.
    Ensured Hetzner/EAS orchestration reads the configurable values while the CLI still enforces cleanup, env loading, and artifact handling.
 8. Document the new configuration file format and usage in `README.md`.
    Done
-   Extended `README.md` with instructions for `expobuild.config.json`, explained each field, and called out the `--config` flag plus the provided example file.
+   Extended `README.md` with instructions for `htzbuild.config.json`, explained each field, and called out the `--config` flag plus the provided example file.
    Mentioned how the configuration lets teams adjust sync paths, artifact discovery, and remote build commands per project.
+9. Rename the CLI entry to `htzbuild`, update all references, and ensure the package metadata reflects the new command.
+   Done
+   Renamed the CLI entry point to `bin/htzbuild`, switched the npm `bin`/`scripts` entries, and updated `README.md`/package metadata accordingly.
+   Adjusted the CLI help text, config loader defaults, and ecosystem references so every documentation mention now uses `htzbuild`.
+10. Add npm publishing instructions so the reusable CLI can be delivered from GitHub.
+   Done
+   Added `PUBLISHING.md` documenting version bumps, npm login, `npm publish --access public`, and verification steps.
+   Highlighted syncing doc updates and ensuring `npm` metadata is current before releasing new CLI versions.

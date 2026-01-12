@@ -1,21 +1,21 @@
 {
-  "name": "expobuildtool",
+  "name": "htzbuild",
   "version": "1.0.0",
   "description": "Hetzner-based EAS remote builder that can be run from any project root with a shared .env directory.",
   "main": "src/cli.js",
   "type": "commonjs",
   "bin": {
-    "expobuild": "./bin/expobuild"
+    "htzbuild": "./bin/htzbuild"
   },
   "files": [
     "bin/",
     "src/",
     "cloud-init-builder.yaml",
     "README.md",
-    "expobuild.config.example.json"
+    "htzbuild.config.example.json"
   ],
   "scripts": {
-    "cli": "node ./bin/expobuild"
+    "cli": "node ./bin/htzbuild"
   },
   "engines": {
     "node": ">=20"
