@@ -1,0 +1,24 @@
+{
+  "name": "expobuildtool",
+  "version": "1.0.0",
+  "description": "Hetzner-based EAS remote builder that can be run from any project root with a shared .env directory.",
+  "main": "src/cli.js",
+  "type": "commonjs",
+  "bin": {
+    "expobuild": "./bin/expobuild"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "cloud-init-builder.yaml",
+    "README.md"
+  ],
+  "scripts": {
+    "cli": "node ./bin/expobuild"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}
+
